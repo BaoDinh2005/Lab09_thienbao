@@ -1,0 +1,181 @@
+﻿<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Quản Lý Sách - Lab09_thienbao</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        body {
+            background-color: #f6f6f6;
+            font-family: sans-serif;
+            font-size: 14px;
+        }
+
+        .container {
+            max-width: 1100px;
+        }
+
+        .card-header-custom {
+            background-color: #f0f7ff;
+            color: #1e5bb0;
+            font-weight: 500;
+            border-bottom: 1px solid #d0e3f7;
+            padding: 10px 15px;
+        }
+
+        .card {
+            border: 1px solid #e0e0e0;
+            border-radius: 4px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+        }
+
+        .table th {
+            background-color: #f8f9fa !important;
+            font-weight: 600;
+            color: #333;
+        }
+
+        .form-control-readonly {
+            background-color: #f1f3f5 !important;
+            color: #6c757d;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="container my-4">
+        <h2 class="fs-4 text-dark mb-4 ps-1">Quản lý Sách</h2>
+
+        <div class="card mb-4">
+            <div class="card-header-custom">Thông tin sách</div>
+            <div class="card-body p-4">
+                <form id="bookForm">
+                    <div class="row mb-3">
+                        <div class="col-md-4">
+                            <label class="form-label fw-bold text-secondary" style="font-size: 13px;">Id</label>
+                            <input type="text" id="bookId" class="form-control form-control-readonly" value="0" readonly style="width: 100px;">
+                        </div>
+                    </div>
+                    <div class="row mb-4">
+                        <div class="col-md-4">
+                            <label class="form-label fw-bold text-dark mb-1">Tên sách</label>
+                            <input type="text" id="title" class="form-control" placeholder="Nhập tên sách">
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label fw-bold text-dark mb-1">Tác giả</label>
+                            <input type="text" id="author" class="form-control" placeholder="Nhập tác giả">
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label fw-bold text-dark mb-1">Giá (VND)</label>
+                            <input type="number" id="price" class="form-control" placeholder="Nhập giá">
+                        </div>
+                    </div>
+                    <div class="d-flex gap-2">
+                        <button type="button" id="btnCreate" class="btn btn-primary px-3"><i class="fa-solid fa-plus me-1"></i> Thêm mới</button>
+                        <button type="button" id="btnUpdate" class="btn btn-success px-3" disabled><i class="fa-solid fa-check me-1"></i> Cập nhật</button>
+                        <button type="button" id="btnClear" class="btn btn-secondary px-3"><i class="fa-solid fa-rotate-left me-1"></i> Làm lại</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        <div class="card">
+            <div class="card-header-custom">Danh sách sách</div>
+            <div class="card-body p-0">
+                <table class="table table-bordered mb-0 align-middle text-center">
+                    <thead>
+                        <tr class="text-secondary" style="font-size: 13px;">
+                            <th style="width: 6%;">Id</th>
+                            <th class="text-start ps-3" style="width: 34%;">Tên sách</th>
+                            <th class="text-start ps-3" style="width: 25%;">Tác giả</th>
+                            <th class="text-start ps-3" style="width: 15%;">Giá (VND)</th>
+                            <th style="width: 20%;">Thao tác</th>
+                        </tr>
+                    </thead>
+                    <tbody id="bookTableBody"></tbody>
+                </table>
+            </div>
+            <div class="card-footer bg-white border-top-0 py-3 text-dark">
+                Tổng số sách: <span id="totalBooks">0</span>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://code.jquery.com/jquery-3.6.4.min.js"></script>
+    <script>
+    // Vì chạy chung dự án Backend nên đường dẫn API chỉ cần ngắn gọn như thế này, tự động nhận đúng Port:
+    const apiUrl = "/api/books";
+
+    $(document).ready(function () {
+        loadBooks();
+
+        $("#btnCreate").click(function () {
+            if (!validateForm()) return;
+            let data = { title: $("#title").val().trim(), author: $("#author").val().trim(), price: parseFloat($("#price").val()) };
+            $.ajax({
+                url: apiUrl, type: "POST", contentType: "application/json", data: JSON.stringify(data),
+                success: function () { alert("Thêm thành công!"); clearForm(); loadBooks(); },
+                error: function (xhr) { alert("Lỗi thêm dữ liệu!"); }
+            });
+        });
+
+        $("#btnUpdate").click(function () {
+            if (!validateForm()) return;
+            let id = $("#bookId").val();
+            let data = { id: parseInt(id), title: $("#title").val().trim(), author: $("#author").val().trim(), price: parseFloat($("#price").val()) };
+            $.ajax({
+                url: apiUrl + "/" + id, type: "PUT", contentType: "application/json", data: JSON.stringify(data),
+                success: function () { alert("Cập nhật thành công!"); clearForm(); loadBooks(); }
+            });
+        });
+
+        $("#btnClear").click(clearForm);
+    });
+
+    function loadBooks() {
+        $.ajax({
+            url: apiUrl, type: "GET",
+            success: function (books) {
+                let rows = "";
+                books.forEach(book => {
+                    rows += `<tr>
+                        <td class="text-secondary">${book.id}</td>
+                        <td class="text-start ps-3 fw-normal">${book.title}</td>
+                        <td class="text-start ps-3 text-secondary">${book.author}</td>
+                        <td class="text-start ps-3">${Number(book.price).toLocaleString('vi-VN')}</td>
+                        <td>
+                            <button class="btn btn-warning btn-sm text-white px-3 me-2" onclick="editBook(${book.id})"><i class="fa-solid fa-pencil me-1"></i> Sửa</button>
+                            <button class="btn btn-danger btn-sm text-white px-3" onclick="deleteBook(${book.id})"><i class="fa-solid fa-trash-can me-1"></i> Xóa</button>
+                        </td>
+                    </tr>`;
+                });
+                $("#bookTableBody").html(rows);
+                $("#totalBooks").text(books.length);
+            }
+        });
+    }
+
+    function editBook(id) {
+        $.ajax({ url: apiUrl + "/" + id, type: "GET", success: function (book) {
+            $("#bookId").val(book.id); $("#title").val(book.title); $("#author").val(book.author); $("#price").val(book.price);
+            $("#btnCreate").prop("disabled", true); $("#btnUpdate").prop("disabled", false);
+        }});
+    }
+
+    function deleteBook(id) {
+        if (confirm("Xóa cuốn sách này?")) {
+            $.ajax({ url: apiUrl + "/" + id, type: "DELETE", success: function () { alert("Đã xóa!"); clearForm(); loadBooks(); } });
+        }
+    }
+
+    function validateForm() {
+        if ($("#title").val().trim() === "" || $("#author").val().trim() === "" || $("#price").val() <= 0) { alert("Vui lòng nhập dữ liệu hợp lệ!"); return false; }
+        return true;
+    }
+
+    function clearForm() { $("#bookId").val("0"); $("#title").val(""); $("#author").val(""); $("#price").val(""); $("#btnCreate").prop("disabled", false); $("#btnUpdate").prop("disabled", true); }
+    </script>
+</body>
+</html>
